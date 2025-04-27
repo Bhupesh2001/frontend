@@ -1,21 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Form, Button, Alert } from 'react-bootstrap';
 
-const BookingModal = ({ show, movie, onHide, onSubmit }) => {
-  const [tickets, setTickets] = useState(1);
-  const [seats, setSeats] = useState('');
-  const [errors, setErrors] = useState({});
+const BookingModal = ({ 
+  show, 
+  movie, 
+  onHide, 
+  onSubmit,
+  isLoading,
+  error 
+}) => {
+  const [formData, setFormData] = useState({
+    tickets: 1,
+    seats: ''
+  });
+  const [validationErrors, setValidationErrors] = useState({});
+
+  // Reset form when modal is shown/hidden
+  useEffect(() => {
+    if (!show) {
+      setFormData({ tickets: 1, seats: '' });
+      setValidationErrors({});
+    }
+  }, [show]);
+
+  const getAvailableTickets = () => movie?.totalTickets - movie?.bookedTickets;
 
   const validateForm = () => {
-    const newErrors = {};
-    if (tickets < 1) newErrors.tickets = 'Minimum 1 ticket required';
-    if (tickets > (movie.totalTickets - movie.bookedTickets)) {
-      newErrors.tickets = `Only ${movie.totalTickets - movie.bookedTickets} tickets available`;
+    const errors = {};
+    const seatCount = formData.seats.split(',').filter(s => s.trim()).length;
+
+    if (formData.tickets < 1) {
+      errors.tickets = 'Minimum 1 ticket required';
+    } else if (formData.tickets > getAvailableTickets()) {
+      errors.tickets = `Only ${getAvailableTickets()} tickets available`;
     }
-    if (!seats.trim()) newErrors.seats = 'Seat numbers required';
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (!formData.seats.trim()) {
+      errors.seats = 'Seat numbers required';
+    } else if (seatCount !== formData.tickets) {
+      errors.seats = `Enter exactly ${formData.tickets} seat(s)`;
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = () => {
@@ -24,56 +51,83 @@ const BookingModal = ({ show, movie, onHide, onSubmit }) => {
     onSubmit({
       movieName: movie.movieName,
       theatreName: movie.theatreName,
-      numberOfTickets: tickets,
-      seatNumbers: seats.split(',').map(s => s.trim())
+      numberOfTickets: formData.tickets,
+      seatNumbers: formData.seats.split(',').map(s => s.trim())
     });
-    onHide();
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: field === 'tickets' ? Math.max(1, value) : value
+    }));
   };
 
   return (
     <Modal show={show} onHide={onHide} centered>
       <Modal.Header closeButton>
-        <Modal.Title>Book Tickets for {movie?.movieName}</Modal.Title>
+        <Modal.Title>
+          Book Tickets for {movie?.movieName}
+          <div className="text-muted small mt-1">
+            {movie?.theatreName} | Available: {getAvailableTickets()}
+          </div>
+        </Modal.Title>
       </Modal.Header>
       
       <Modal.Body>
+        {error && <Alert variant="danger" className="mb-3">{error}</Alert>}
+
         <Form>
           <Form.Group className="mb-3">
-            <Form.Label>Number of Tickets</Form.Label>
+            <Form.Label>Tickets Required</Form.Label>
             <Form.Control
               type="number"
               min="1"
-              value={tickets}
-              onChange={(e) => setTickets(Math.max(1, e.target.value))}
-              isInvalid={!!errors.tickets}
+              max={getAvailableTickets()}
+              value={formData.tickets}
+              onChange={(e) => handleInputChange('tickets', parseInt(e.target.value))}
+              isInvalid={!!validationErrors.tickets}
+              disabled={isLoading}
             />
             <Form.Control.Feedback type="invalid">
-              {errors.tickets}
+              {validationErrors.tickets}
             </Form.Control.Feedback>
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Seat Numbers (comma separated)</Form.Label>
+            <Form.Label>Seat Numbers</Form.Label>
             <Form.Control
               type="text"
-              placeholder="E.g., A1, A2, B3"
-              value={seats}
-              onChange={(e) => setSeats(e.target.value)}
-              isInvalid={!!errors.seats}
+              placeholder="Example: A1, A2, B3"
+              value={formData.seats}
+              onChange={(e) => handleInputChange('seats', e.target.value)}
+              isInvalid={!!validationErrors.seats}
+              disabled={isLoading}
             />
+            <Form.Text className="text-muted">
+              Enter comma-separated seat numbers
+            </Form.Text>
             <Form.Control.Feedback type="invalid">
-              {errors.seats}
+              {validationErrors.seats}
             </Form.Control.Feedback>
           </Form.Group>
         </Form>
       </Modal.Body>
 
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
+        <Button 
+          variant="secondary" 
+          onClick={onHide}
+          disabled={isLoading}
+        >
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSubmit}>
-          Confirm Booking
+        <Button 
+          variant="primary" 
+          onClick={handleSubmit}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Processing...' : 'Confirm Booking'}
         </Button>
       </Modal.Footer>
     </Modal>
