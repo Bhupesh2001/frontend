@@ -47,12 +47,15 @@ const BookingModal = ({
 
   const handleSubmit = () => {
     if (!validateForm()) return;
-    
+
+    const value = localStorage.getItem('loginId');
+  
     onSubmit({
       movieName: movie.movieName,
       theatreName: movie.theatreName,
       numberOfTickets: formData.tickets,
-      seatNumbers: formData.seats.split(',').map(s => s.trim())
+      seatNumbers: formData.seats.split(',').map(s => s.trim()),
+      loginId: value, 
     });
   };
 

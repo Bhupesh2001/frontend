@@ -23,7 +23,8 @@ const Dashboard = () => {
       success: '',
       isLoading: true
     });
-
+    const value = localStorage.getItem('loginId').toString();
+    bookingData.loginId = value;
     try {
       await api.post(`/${encodeURIComponent(bookingData.movieName)}/add`, bookingData);
       
